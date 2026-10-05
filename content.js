@@ -245,7 +245,8 @@
     <link rel="stylesheet" href="${chrome.runtime.getURL("panel.css")}">
     <aside class="panel" aria-label="IRF therapy minutes">
       <header class="bar">
-        <h1>IRF therapy minutes</h1>
+        <h1>IRF therapy minutes
+          <span class="version">v${esc(chrome.runtime.getManifest().version)}<span class="vstate"></span></span></h1>
         <button type="button" class="close" data-act="close" aria-label="Close panel">&times;</button>
       </header>
       <div class="update" role="status" hidden></div>
@@ -254,6 +255,9 @@
           ${FACILITIES.map(([id, label]) => `<option value="${id}">${label} (${id})</option>`).join("")}
         </select></label>
         <button type="submit" class="primary">Load patients</button>
+        <label class="sortby">Sort patients by <select name="sortBy">
+          ${SORTS.map(([id, label]) => `<option value="${id}">${label}</option>`).join("")}
+        </select></label>
       </form>
       <p class="status" role="status"></p>
       <div class="tabs" role="tablist">
@@ -287,6 +291,7 @@
     if (state.settingsLoaded) return;
     const { facility, sortBy } = await chrome.storage.sync.get(["facility", "sortBy"]);
     if (SORTS.some(([id]) => id === sortBy)) state.sortBy = sortBy;
+    form.sortBy.value = state.sortBy;
     form.facility.value = FACILITIES.some(([id]) => id === facility) ? facility : DEFAULT_FACILITY;
     state.settingsLoaded = true;
   }
@@ -296,7 +301,14 @@
     if (updateChecked) return;
     updateChecked = true;
     const update = await chrome.runtime.sendMessage({ type: "irf:checkUpdate" }).catch(() => null);
-    if (!update) return;
+    const vstate = $(".vstate");
+    if (!update?.latest) {
+      vstate.textContent = " · couldn't check for updates";
+      return;
+    }
+    vstate.textContent = update.outdated ? " · update available" : " · up to date";
+    vstate.classList.toggle("outdated", update.outdated);
+    if (!update.outdated) return;
     const el = $(".update");
     el.innerHTML = `<strong>Update available:</strong> version ${esc(update.latest)} is out (you have ${esc(update.current)}).
       Run <code>git pull</code> in the extension folder, then click the reload icon on IRF Minutes.
@@ -432,13 +444,8 @@
         ${part("met", counts.met, "met the target")}
         ${part("unknown", counts.unknown, "couldn't be checked")}
       </ul>
-      <div class="listopts">
-        <label class="sort">Sort by <select data-act="sort">
-          ${SORTS.map(([id, label]) => `<option value="${id}" ${id === state.sortBy ? "selected" : ""}>${label}</option>`).join("")}
-        </select></label>
-        <label class="filter"><input type="checkbox" data-act="filter" ${state.onlyNeeding ? "checked" : ""}>
-          Only show patients who still need minutes</label>
-      </div>
+      <label class="filter"><input type="checkbox" data-act="filter" ${state.onlyNeeding ? "checked" : ""}>
+        Only show patients who still need minutes</label>
       <details class="help">
         <summary>How the target works</summary>
         <p>Each patient needs ${WEEKLY_TARGET_MIN} minutes (${WEEKLY_TARGET_MIN / 60} hours) of PT, OT and ST combined in every
@@ -575,18 +582,18 @@
     load();
   });
 
+  form.sortBy.addEventListener("change", () => {
+    state.sortBy = form.sortBy.value;
+    chrome.storage.sync.set({ sortBy: state.sortBy });
+    if (!state.patients.length) return;
+    sortPatients(state.patients, state.sortBy);
+    renderMinutes();
+  });
+
   minutesView.addEventListener("change", (e) => {
-    const { act } = e.target.dataset;
-    if (act === "filter") {
-      state.onlyNeeding = e.target.checked;
-      minutesView.classList.toggle("only-needing", state.onlyNeeding);
-    } else if (act === "sort") {
-      state.sortBy = e.target.value;
-      chrome.storage.sync.set({ sortBy: state.sortBy });
-      sortPatients(state.patients, state.sortBy);
-      renderMinutes();
-      minutesView.querySelector('[data-act="sort"]').focus();
-    }
+    if (e.target.dataset.act !== "filter") return;
+    state.onlyNeeding = e.target.checked;
+    minutesView.classList.toggle("only-needing", state.onlyNeeding);
   });
 
   root.addEventListener("click", (e) => {

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "IRF Minutes for WellSky",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Weekly PT/OT/ST minutes and missing-minute charges for Inpatient Rehab patients, docked inside WellSky.",
   "permissions": ["cookies", "storage"],
   "host_permissions": ["https://*.specialtycare.wellsky.com/*"],
