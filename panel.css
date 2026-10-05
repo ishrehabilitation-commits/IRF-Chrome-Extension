@@ -11,6 +11,7 @@
   --met: #2e7a4c;
   --pending: #3b6fa3;
   --short: #b2412f;
+  --behind: #b26a00;
   --flag: #f6d6d2;
 
   box-sizing: border-box;
@@ -68,6 +69,25 @@ button:disabled { cursor: default; opacity: 0.4; }
 .note { margin: 6px 0; color: var(--muted); }
 .note.error { color: var(--short); }
 
+/* Summary at the top of the Minutes tab */
+.summary { padding: 10px 0 12px; border-bottom: 1px solid var(--line); }
+.headline { margin: 0 0 6px; font-size: 14px; }
+.tally { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0 0 8px; padding: 0; list-style: none; font-size: 12px; }
+.tally li::before {
+  content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--muted);
+}
+.tally .behind::before { background: var(--behind); }
+.tally .pending::before { background: var(--pending); }
+.tally .met::before { background: var(--met); }
+.tally .unknown::before { background: var(--short); }
+.filter { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; }
+.help { margin-top: 8px; font-size: 12px; color: var(--muted); }
+.help summary { cursor: pointer; color: var(--chrome); }
+.help p { margin: 6px 0 0; max-width: 70ch; }
+.only-needing .patient.done { display: none; }
+
+.intro { margin: 10px 0 4px; max-width: 70ch; font-size: 12px; color: var(--muted); }
+
 /* Patient block */
 .patient { padding: 14px 0; border-bottom: 1px solid var(--line); }
 .who { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
@@ -89,6 +109,8 @@ button:disabled { cursor: default; opacity: 0.4; }
 .meter.pending .fill { background: var(--pending); }
 .meter.short .fill { background: var(--short); }
 .meter.short span { color: var(--short); }
+.meter.behind .fill { background: var(--behind); }
+.meter.behind span { color: var(--behind); }
 @media (prefers-reduced-motion: reduce) { .meter .fill { transition: none; } }
 
 /* Minutes table */
