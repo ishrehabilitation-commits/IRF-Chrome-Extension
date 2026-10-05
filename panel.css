@@ -43,6 +43,15 @@ button:disabled { cursor: default; opacity: 0.4; }
 .bar h1 { margin: 0; font-size: 15px; font-weight: 600; }
 .close { background: none; border: 0; color: #fff; font-size: 22px; line-height: 1; padding: 0 4px; }
 
+.update {
+  padding: 8px 14px; background: #fff4d6; border-bottom: 1px solid #e8cf86; font-size: 12px; line-height: 1.5;
+}
+.update code { padding: 0 3px; background: #fbe7ae; border-radius: 2px; font-family: Consolas, monospace; }
+.update button {
+  margin-left: 4px; padding: 1px 8px; border: 1px solid #c9a641; border-radius: 3px; background: #fff; font-size: 12px;
+}
+.update[hidden] { display: none; }
+
 .controls {
   display: flex; flex-wrap: wrap; align-items: end; gap: 10px;
   padding: 10px 14px; background: var(--surface); border-bottom: 1px solid var(--line);

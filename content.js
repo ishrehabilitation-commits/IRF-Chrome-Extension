@@ -248,6 +248,7 @@
         <h1>IRF therapy minutes</h1>
         <button type="button" class="close" data-act="close" aria-label="Close panel">&times;</button>
       </header>
+      <div class="update" role="status" hidden></div>
       <form class="controls">
         <label>Facility <select name="facility">
           ${FACILITIES.map(([id, label]) => `<option value="${id}">${label} (${id})</option>`).join("")}
@@ -290,11 +291,25 @@
     state.settingsLoaded = true;
   }
 
+  let updateChecked = false;
+  async function checkForUpdate() {
+    if (updateChecked) return;
+    updateChecked = true;
+    const update = await chrome.runtime.sendMessage({ type: "irf:checkUpdate" }).catch(() => null);
+    if (!update) return;
+    const el = $(".update");
+    el.innerHTML = `<strong>Update available:</strong> version ${esc(update.latest)} is out (you have ${esc(update.current)}).
+      Run <code>git pull</code> in the extension folder, then click the reload icon on IRF Minutes.
+      <button type="button" data-act="extensions">Open extensions page</button>`;
+    el.hidden = false;
+  }
+
   async function togglePanel(force) {
     const show = force ?? host.style.display === "none";
     host.style.display = show ? "block" : "none";
     if (show) {
       await loadSettings();
+      checkForUpdate();
       loadBtn.focus();
     }
   }
@@ -589,6 +604,9 @@
     switch (btn.dataset.act) {
       case "close":
         togglePanel(false);
+        break;
+      case "extensions":
+        chrome.runtime.sendMessage({ type: "irf:openExtensions" });
         break;
       case "week":
         p.week = Math.max(0, Math.min(p.maxWk, p.week + int(btn.dataset.dir)));
