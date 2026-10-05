@@ -37,8 +37,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg?.type === "irf:checkUpdate") {
     const current = chrome.runtime.getManifest().version;
     latestVersion()
-      .then((latest) => sendResponse(isNewer(latest, current) ? { current, latest } : null))
-      .catch(() => sendResponse(null));
+      .then((latest) => sendResponse({ current, latest, outdated: isNewer(latest, current) }))
+      .catch(() => sendResponse({ current, latest: null, outdated: false }));
     return true;
   }
   if (msg?.type === "irf:openExtensions") {
