@@ -140,17 +140,27 @@
     return { status, total, remaining, daysLeft, perDay };
   }
 
-  // Patients who need the most minutes per remaining day first, met targets
-  // after them, and anyone we couldn't check at the end.
+  // "need": most minutes per remaining day first, met targets after them, and
+  // anyone we couldn't check at the end. "room" and "name" are plain lists;
+  // rooms compare as numbers (so 99 comes before 120) and blank rooms go last.
+  const SORTS = [
+    ["need", "Most minutes needed"],
+    ["room", "Room"],
+    ["name", "Name"],
+  ];
   const STATUS_ORDER = { behind: 0, onpace: 0, met: 1, unknown: 2 };
-  function sortByNeed(patients) {
+  const collator = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
+  const byName = (a, b) => collator.compare(String(a.pat.GRIDNAME ?? ""), String(b.pat.GRIDNAME ?? ""));
+  const byRoom = (a, b) => {
+    const ra = roomNumber(a.pat.GRIDROOM);
+    const rb = roomNumber(b.pat.GRIDROOM);
+    return (!ra - !rb) || collator.compare(ra, rb);
+  };
+  function sortPatients(patients, by) {
     const rank = (p) => STATUS_ORDER[p.standing.status] + (p.error ? 2 : 0);
-    return patients.sort(
-      (a, b) =>
-        rank(a) - rank(b) ||
-        (b.standing.perDay ?? 0) - (a.standing.perDay ?? 0) ||
-        String(a.pat.GRIDNAME).localeCompare(String(b.pat.GRIDNAME)),
-    );
+    const byNeed = (a, b) => rank(a) - rank(b) || (b.standing.perDay ?? 0) - (a.standing.perDay ?? 0);
+    const cmp = by === "room" ? byRoom : by === "name" ? byName : byNeed;
+    return patients.sort((a, b) => cmp(a, b) || byName(a, b) || byRoom(a, b));
   }
 
   // ------------------------------------------------------------------ //
@@ -264,7 +274,7 @@
   const minutesView = $('[data-view="minutes"]');
   const correctionsView = $('[data-view="corrections"]');
 
-  const state = { patients: [], busy: false, settingsLoaded: false, onlyNeeding: false };
+  const state = { patients: [], busy: false, settingsLoaded: false, onlyNeeding: false, sortBy: "need" };
 
   function setStatus(text, isError = false) {
     const el = $(".status");
@@ -274,7 +284,8 @@
 
   async function loadSettings() {
     if (state.settingsLoaded) return;
-    const { facility } = await chrome.storage.sync.get("facility");
+    const { facility, sortBy } = await chrome.storage.sync.get(["facility", "sortBy"]);
+    if (SORTS.some(([id]) => id === sortBy)) state.sortBy = sortBy;
     form.facility.value = FACILITIES.some(([id]) => id === facility) ? facility : DEFAULT_FACILITY;
     state.settingsLoaded = true;
   }
@@ -406,16 +417,21 @@
         ${part("met", counts.met, "met the target")}
         ${part("unknown", counts.unknown, "couldn't be checked")}
       </ul>
-      <label class="filter"><input type="checkbox" data-act="filter" ${state.onlyNeeding ? "checked" : ""}>
-        Only show patients who still need minutes</label>
+      <div class="listopts">
+        <label class="sort">Sort by <select data-act="sort">
+          ${SORTS.map(([id, label]) => `<option value="${id}" ${id === state.sortBy ? "selected" : ""}>${label}</option>`).join("")}
+        </select></label>
+        <label class="filter"><input type="checkbox" data-act="filter" ${state.onlyNeeding ? "checked" : ""}>
+          Only show patients who still need minutes</label>
+      </div>
       <details class="help">
         <summary>How the target works</summary>
         <p>Each patient needs ${WEEKLY_TARGET_MIN} minutes (${WEEKLY_TARGET_MIN / 60} hours) of PT, OT and ST combined in every
           7-day week, counted from their admission date, not the calendar week. Individual, group, co-treat and
           concurrent minutes all count.</p>
         <p><strong>Behind pace</strong> means fewer minutes than an even share of the target for the days already
-          finished this week (about ${Math.round(WEEKLY_TARGET_MIN / 7)} a day). Patients are listed with the most minutes
-          needed per remaining day first.</p>
+          finished this week (about ${Math.round(WEEKLY_TARGET_MIN / 7)} a day). Sorting by "Most minutes needed" puts
+          the patients who need the most minutes per remaining day first.</p>
       </details>
     </div>`;
   }
@@ -516,7 +532,7 @@
         p.standing = standing(p);
         return p;
       });
-      sortByNeed(state.patients);
+      sortPatients(state.patients, state.sortBy);
 
       renderMinutes();
       renderCorrections();
@@ -545,9 +561,17 @@
   });
 
   minutesView.addEventListener("change", (e) => {
-    if (e.target.dataset.act !== "filter") return;
-    state.onlyNeeding = e.target.checked;
-    minutesView.classList.toggle("only-needing", state.onlyNeeding);
+    const { act } = e.target.dataset;
+    if (act === "filter") {
+      state.onlyNeeding = e.target.checked;
+      minutesView.classList.toggle("only-needing", state.onlyNeeding);
+    } else if (act === "sort") {
+      state.sortBy = e.target.value;
+      chrome.storage.sync.set({ sortBy: state.sortBy });
+      sortPatients(state.patients, state.sortBy);
+      renderMinutes();
+      minutesView.querySelector('[data-act="sort"]').focus();
+    }
   });
 
   root.addEventListener("click", (e) => {
