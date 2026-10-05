@@ -21,6 +21,11 @@
   ];
   const TYPE_ORDER = MINUTE_FIELDS.map(([, type]) => type);
   const THERAPIST_FIELDS = ["CHRGENTRNAME", "CHRGENTRBY", "CHRGBY", "ENTERBY"];
+  const FACILITIES = [
+    ["204", "IRF Shreveport"],
+    ["203", "IRF Bossier"],
+  ];
+  const DEFAULT_FACILITY = "204";
 
   // ------------------------------------------------------------------ //
   //  Small helpers                                                      //
@@ -158,6 +163,25 @@
     return s;
   }
 
+  // WellSky keeps the signed-in user in its HCS.userId global, which only the
+  // page's own scripts can see; page-bridge.js reads it for us.
+  function getUserId() {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        document.removeEventListener("irf:userId", onAnswer);
+        reject(new Error("Couldn't read your WellSky user ID. Reload the WellSky tab and try again."));
+      }, 2000);
+      function onAnswer(e) {
+        clearTimeout(timer);
+        document.removeEventListener("irf:userId", onAnswer);
+        if (e.detail) resolve(String(e.detail));
+        else reject(new Error("WellSky hasn't finished signing you in yet. Wait for it to load, then load patients again."));
+      }
+      document.addEventListener("irf:userId", onAnswer);
+      document.dispatchEvent(new CustomEvent("irf:getUserId"));
+    });
+  }
+
   async function callWellsky(name, data) {
     const res = await fetch(`${location.origin}/Interactant/get/${name}?t=${Date.now()}`, {
       method: "POST",
@@ -215,8 +239,9 @@
         <button type="button" class="close" data-act="close" aria-label="Close panel">&times;</button>
       </header>
       <form class="controls">
-        <label>User ID <input name="userId" autocomplete="off" spellcheck="false" required></label>
-        <label>Facility <input name="facility" inputmode="numeric" pattern="\\d+" required></label>
+        <label>Facility <select name="facility">
+          ${FACILITIES.map(([id, label]) => `<option value="${id}">${label} (${id})</option>`).join("")}
+        </select></label>
         <button type="submit" class="primary">Load patients</button>
       </form>
       <p class="status" role="status"></p>
@@ -249,9 +274,8 @@
 
   async function loadSettings() {
     if (state.settingsLoaded) return;
-    const { userId = "", facility = "204" } = await chrome.storage.sync.get(["userId", "facility"]);
-    form.userId.value = userId;
-    form.facility.value = facility;
+    const { facility } = await chrome.storage.sync.get("facility");
+    form.facility.value = FACILITIES.some(([id]) => id === facility) ? facility : DEFAULT_FACILITY;
     state.settingsLoaded = true;
   }
 
@@ -260,7 +284,7 @@
     host.style.display = show ? "block" : "none";
     if (show) {
       await loadSettings();
-      (form.userId.value ? loadBtn : form.userId).focus();
+      loadBtn.focus();
     }
   }
 
@@ -462,15 +486,15 @@
 
   async function load() {
     if (state.busy) return;
-    const userId = form.userId.value.trim();
-    const facility = form.facility.value.trim();
-    chrome.storage.sync.set({ userId, facility });
+    const facility = form.facility.value;
+    chrome.storage.sync.set({ facility });
 
     state.busy = true;
     loadBtn.disabled = true;
     try {
       setStatus("Checking your WellSky session…");
       const { token } = await getSession();
+      const userId = await getUserId();
 
       setStatus("Loading patient list…");
       const pats = await fetchPatients(userId, token, int(facility));
@@ -499,7 +523,7 @@
       const failed = state.patients.filter((p) => p.error).length;
       const time = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
       setStatus(
-        `Loaded ${state.patients.length} patient${state.patients.length === 1 ? "" : "s"} at ${time}.` +
+        `Loaded ${state.patients.length} patient${state.patients.length === 1 ? "" : "s"} at ${time} as ${userId}.` +
           (failed ? ` Charges failed for ${failed}; see the notes below.` : ""),
         failed > 0,
       );
