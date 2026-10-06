@@ -20,17 +20,27 @@ if (-not (Test-Path $batPath)) {
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
   throw "git isn't installed, or isn't on PATH. Install Git for Windows first."
 }
-if (-not ((Get-Command py -ErrorAction SilentlyContinue) -or (Get-Command python -ErrorAction SilentlyContinue))) {
-  throw "Python 3 isn't installed, or isn't on PATH. Install it from python.org first."
+# Run the helper exactly the way Chrome will. This catches the Windows
+# "python" placeholder that only opens the Microsoft Store, which passes a
+# simple "is python on PATH" test but can't run anything.
+$check = & $batPath --check 2>&1 | Out-String
+if ($LASTEXITCODE -ne 0 -or $check -notmatch "^OK") {
+  Write-Host $check.Trim()
+  throw ("The updater couldn't run on this computer. If the message above mentions Python or the Microsoft Store, " +
+    "install Python 3 from python.org (tick 'Add python.exe to PATH'), then run this installer again. " +
+    "More detail is in $(Join-Path $updaterDir 'updater.log').")
 }
+Write-Host $check.Trim()
 
-@{
-  name           = $HostName
-  description    = "IRF Minutes updater"
-  path           = $batPath
-  type           = "stdio"
+# Chrome reads this file; write it as plain UTF-8 without a byte-order mark.
+$manifest = @{
+  name            = $HostName
+  description     = "IRF Minutes updater"
+  path            = $batPath
+  type            = "stdio"
   allowed_origins = @("chrome-extension://$ExtensionId/")
-} | ConvertTo-Json | Set-Content -Path $manifestPath -Encoding UTF8
+} | ConvertTo-Json
+[System.IO.File]::WriteAllText($manifestPath, $manifest, (New-Object System.Text.UTF8Encoding $false))
 
 foreach ($browserKey in @("Google\Chrome", "Microsoft\Edge")) {
   $key = "HKCU:\Software\$browserKey\NativeMessagingHosts\$HostName"

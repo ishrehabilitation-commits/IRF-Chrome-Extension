@@ -61,7 +61,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       .catch((err) =>
         sendResponse({
           ok: false,
-          error: `${err.message} The updater may not be set up on this computer; see updater/README.md.`,
+          error: `${err.message} The updater may not be set up on this computer, or it failed to start; details are in updater/updater.log in the extension folder.`,
         }),
       );
     return true;
