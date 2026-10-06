@@ -35,6 +35,29 @@ Restart Chrome afterwards. Then open the panel: when a newer version is on
 GitHub, **Update now** pulls it and reloads the extension on its own. Refresh
 the WellSky tab to pick up the new panel.
 
+## If Update now says "Error when communicating with the native messaging host"
+
+That means Chrome started the helper but it died before answering. To see why:
+
+1. Look at `updater/updater.log` in the extension folder. Every run is logged
+   there, including any Python error.
+2. Run the helper by hand, exactly as Chrome does, from Command Prompt in the
+   extension folder:
+
+   ```
+   updater\irf_updater.bat --check
+   ```
+
+   It should print `OK: Python 3.x, git sees the extension folder`. On a Mac:
+   `updater/irf_updater.py --check`.
+
+The most common cause on Windows is that Python isn't really installed:
+Windows includes a placeholder `python` command that only opens the Microsoft
+Store. Install Python 3 from python.org, tick **Add python.exe to PATH**, and
+run the installer again.
+
+To try a real update outside Chrome, use `--test` in place of `--check`.
+
 ## Notes
 
 - The extension's ID is pinned by the `key` in `manifest.json`, so every

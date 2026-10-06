@@ -17,6 +17,12 @@ command -v git >/dev/null || { echo "git isn't installed. Install it first." >&2
 command -v python3 >/dev/null || { echo "python3 isn't installed. Install it first." >&2; exit 1; }
 chmod +x "$host_path"
 
+# Run the helper the way Chrome will, without changing anything.
+if ! "$host_path" --check; then
+  echo "The updater couldn't run here; see $updater_dir/updater.log." >&2
+  exit 1
+fi
+
 for browser_dir in \
   "$HOME/Library/Application Support/Google/Chrome/NativeMessagingHosts" \
   "$HOME/Library/Application Support/Microsoft Edge/NativeMessagingHosts"

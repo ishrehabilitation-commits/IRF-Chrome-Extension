@@ -7,17 +7,33 @@ repository to update is simply its parent directory.
 
 Protocol: each message is a 4-byte little-endian length followed by that many
 bytes of JSON, on stdin and stdout.
+
+Every run appends to updater/updater.log. To try an update by hand, outside
+Chrome, run:   python updater/irf_updater.py --test
 """
 
+import datetime
 import json
 import os
 import struct
 import subprocess
 import sys
+import traceback
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.dirname(HERE)
+LOG = os.path.join(HERE, "updater.log")
 BRANCH = "main"
 TIMEOUT = 120
+
+
+def log(text):
+    try:
+        stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open(LOG, "a", encoding="utf-8") as f:
+            f.write("%s  %s\n" % (stamp, text))
+    except OSError:
+        pass  # Logging must never be the reason an update fails.
 
 
 def read_message():
@@ -36,12 +52,14 @@ def send_message(payload):
 
 
 def git(*args):
-    return subprocess.run(
+    result = subprocess.run(
         ("git", "-C", REPO) + args,
         capture_output=True,
         text=True,
         timeout=TIMEOUT,
     )
+    log("git %s -> exit %d %s" % (" ".join(args), result.returncode, (result.stderr or result.stdout).strip()))
+    return result
 
 
 def version():
@@ -72,28 +90,51 @@ def explain(output):
 def update():
     """Bring the folder up to date with origin/main, without discarding work."""
     before = version()
-    steps = [("fetch", "origin", BRANCH), ("merge", "--ff-only", "origin/" + BRANCH)]
-    for args in steps:
-        result = git(*args)
-        if result.returncode != 0:
-            return {"ok": False, "before": before, "error": explain(result.stderr or result.stdout)}
+    try:
+        for args in [("fetch", "origin", BRANCH), ("merge", "--ff-only", "origin/" + BRANCH)]:
+            result = git(*args)
+            if result.returncode != 0:
+                return {"ok": False, "before": before, "error": explain(result.stderr or result.stdout)}
+    except subprocess.TimeoutExpired:
+        return {"ok": False, "before": before, "error": "git took too long to respond."}
+    except OSError as err:
+        return {"ok": False, "before": before, "error": "couldn't run git (%s). Is Git installed and on PATH?" % err}
     return {"ok": True, "before": before, "after": version()}
 
 
 def main():
+    log("started: python %s, repo %s" % (sys.version.split()[0], REPO))
+
+    if "--check" in sys.argv:
+        # What the installers run: proves Python starts and git can see this
+        # folder, without changing anything.
+        try:
+            result = git("rev-parse", "--is-inside-work-tree")
+            ok = result.returncode == 0 and result.stdout.strip() == "true"
+            detail = "git sees the extension folder" if ok else explain(result.stderr or result.stdout)
+        except OSError as err:
+            ok, detail = False, "couldn't run git (%s). Is Git installed and on PATH?" % err
+        print("%s: Python %s, %s" % ("OK" if ok else "PROBLEM", sys.version.split()[0], detail))
+        sys.exit(0 if ok else 1)
+
+    if "--test" in sys.argv:
+        result = update()
+        log("test result: %s" % result)
+        print(json.dumps(result, indent=2))
+        return
+
     message = read_message()
+    log("received: %s" % message)
     if message is None:
         return
-    if message.get("action") != "update":
-        send_message({"ok": False, "error": "Unknown action."})
-        return
-    try:
-        send_message(update())
-    except subprocess.TimeoutExpired:
-        send_message({"ok": False, "error": "git took too long to respond."})
-    except OSError as err:
-        send_message({"ok": False, "error": "Couldn't run git: %s" % err})
+    result = update() if message.get("action") == "update" else {"ok": False, "error": "Unknown action."}
+    log("result: %s" % result)
+    send_message(result)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        log("crashed:\n" + traceback.format_exc())
+        raise
