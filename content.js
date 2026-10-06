@@ -310,10 +310,30 @@
     vstate.classList.toggle("outdated", update.outdated);
     if (!update.outdated) return;
     const el = $(".update");
-    el.innerHTML = `<strong>Update available:</strong> version ${esc(update.latest)} is out (you have ${esc(update.current)}).
-      Run <code>git pull</code> in the extension folder, then click the reload icon on IRF Minutes.
-      <button type="button" data-act="extensions">Open extensions page</button>`;
+    el.innerHTML = `<p><strong>Update available:</strong> version ${esc(update.latest)} is out (you have ${esc(update.current)}).</p>
+      <p class="updateact">
+        <button type="button" class="primary" data-act="update">Update now</button>
+        <button type="button" data-act="extensions">Open extensions page</button>
+        <span class="updatemsg">Update now needs the one-time setup in <code>updater/</code>.</span>
+      </p>`;
     el.hidden = false;
+  }
+
+  async function applyUpdate(btn) {
+    const msg = $(".updatemsg");
+    btn.disabled = true;
+    msg.textContent = "Updating…";
+    const result = await chrome.runtime.sendMessage({ type: "irf:applyUpdate" }).catch(() => null);
+    if (result?.ok) {
+      // The extension restarts itself a moment from now, which leaves this
+      // panel disconnected until the page is reloaded.
+      msg.textContent = `Updated to version ${result.after ?? "the latest"}. Refresh this page to use it.`;
+    } else {
+      btn.disabled = false;
+      msg.textContent = result?.error
+        ? `Couldn't update: ${result.error}`
+        : "Couldn't update. Run git pull in the extension folder instead.";
+    }
   }
 
   async function togglePanel(force) {
@@ -614,6 +634,9 @@
         break;
       case "extensions":
         chrome.runtime.sendMessage({ type: "irf:openExtensions" });
+        break;
+      case "update":
+        applyUpdate(btn);
         break;
       case "week":
         p.week = Math.max(0, Math.min(p.maxWk, p.week + int(btn.dataset.dir)));

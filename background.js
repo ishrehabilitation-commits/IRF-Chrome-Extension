@@ -10,6 +10,9 @@ const COOKIE_NAMES = ["JSESSIONTOKEN", "ssoId"];
 const LATEST_MANIFEST_URL =
   "https://raw.githubusercontent.com/ishrehabilitation-commits/IRF-Chrome-Extension/main/manifest.json";
 const UPDATE_CHECK_EVERY_MS = 6 * 60 * 60 * 1000;
+// updater/ holds a small script that runs git for us, since an extension
+// can't. It only answers if the user ran one of the install scripts.
+const UPDATER_HOST = "com.irf.minutes.updater";
 
 const isNewer = (a, b) => {
   const pa = String(a).split(".").map(Number);
@@ -39,6 +42,28 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     latestVersion()
       .then((latest) => sendResponse({ current, latest, outdated: isNewer(latest, current) }))
       .catch(() => sendResponse({ current, latest: null, outdated: false }));
+    return true;
+  }
+  if (msg?.type === "irf:applyUpdate") {
+    chrome.runtime
+      .sendNativeMessage(UPDATER_HOST, { action: "update" })
+      .then((result) => {
+        if (!result?.ok) {
+          sendResponse(result ?? { ok: false, error: "The updater didn't answer." });
+          return;
+        }
+        chrome.storage.local.remove("updateCheck");
+        sendResponse(result);
+        // Reloading restarts this worker, so let the answer land first. Chrome
+        // re-reads the folder from disk, which is how the new code takes hold.
+        setTimeout(() => chrome.runtime.reload(), 1000);
+      })
+      .catch((err) =>
+        sendResponse({
+          ok: false,
+          error: `${err.message} The updater may not be set up on this computer; see updater/README.md.`,
+        }),
+      );
     return true;
   }
   if (msg?.type === "irf:openExtensions") {
