@@ -20,14 +20,12 @@ if (-not (Test-Path $batPath)) {
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
   throw "git isn't installed, or isn't on PATH. Install Git for Windows first."
 }
-# Run the helper exactly the way Chrome will. This catches the Windows
-# "python" placeholder that only opens the Microsoft Store, which passes a
-# simple "is python on PATH" test but can't run anything.
+# Run the helper exactly the way Chrome will, so a problem shows up now
+# rather than as a vague error in the panel later. It changes nothing.
 $check = & $batPath --check 2>&1 | Out-String
 if ($LASTEXITCODE -ne 0 -or $check -notmatch "^OK") {
   Write-Host $check.Trim()
-  throw ("The updater couldn't run on this computer. If the message above mentions Python or the Microsoft Store, " +
-    "install Python 3 from python.org (tick 'Add python.exe to PATH'), then run this installer again. " +
+  throw ("The updater couldn't run on this computer; the message above says why. " +
     "More detail is in $(Join-Path $updaterDir 'updater.log').")
 }
 Write-Host $check.Trim()

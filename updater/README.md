@@ -11,8 +11,10 @@ to run `git pull` themselves.
 ## What you need first
 
 - **git**, and a clone of this repository that the extension is loaded from.
-- **Python 3** ([python.org](https://www.python.org/downloads/); on a Mac it is
-  usually already there).
+- On Windows, nothing else: the helper is a PowerShell script
+  (`irf_updater.ps1`), and PowerShell comes with Windows.
+- On a Mac, **Python 3**, which is usually already there. The Mac helper is
+  `irf_updater.py`.
 
 ## Windows
 
@@ -40,7 +42,8 @@ the WellSky tab to pick up the new panel.
 That means Chrome started the helper but it died before answering. To see why:
 
 1. Look at `updater/updater.log` in the extension folder. Every run is logged
-   there, including any Python error.
+   there; if PowerShell itself failed to start the script, the reason is in
+   `updater/updater-errors.log`.
 2. Run the helper by hand, exactly as Chrome does, from Command Prompt in the
    extension folder:
 
@@ -48,13 +51,11 @@ That means Chrome started the helper but it died before answering. To see why:
    updater\irf_updater.bat --check
    ```
 
-   It should print `OK: Python 3.x, git sees the extension folder`. On a Mac:
-   `updater/irf_updater.py --check`.
+   It should print `OK: PowerShell 5.1…, git sees the extension folder`. On a
+   Mac: `updater/irf_updater.py --check`.
 
-The most common cause on Windows is that Python isn't really installed:
-Windows includes a placeholder `python` command that only opens the Microsoft
-Store. Install Python 3 from python.org, tick **Add python.exe to PATH**, and
-run the installer again.
+If it says git can't be found, install Git for Windows and run the installer
+again.
 
 To try a real update outside Chrome, use `--test` in place of `--check`.
 
