@@ -14,4 +14,4 @@ resources/.arch-internal-preview.css
 .arch-internal-preview.css
 
 # IRF Minutes updater log (per computer)
-updater/updater.log
+updater/*.log
