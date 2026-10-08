@@ -87,10 +87,24 @@ def explain(output):
     return output.strip()[:300]
 
 
+def edited_files(changed):
+    names = ", ".join(changed[:5]) + (" and others" if len(changed) > 5 else "")
+    return (
+        "these files don't match GitHub: %s. Run 'git checkout -- .' in the extension "
+        "folder to replace them with GitHub's version, then try again." % names
+    )
+
+
 def update():
     """Bring the folder up to date with origin/main, without discarding work."""
     before = version()
     try:
+        # A merge only refuses edits it would overwrite, so check first: an
+        # edited or stale file would otherwise survive a "successful" update.
+        status = git("diff", "--name-only", "HEAD")
+        changed = [line for line in status.stdout.splitlines() if line.strip()]
+        if changed:
+            return {"ok": False, "before": before, "error": edited_files(changed)}
         for args in [("fetch", "origin", BRANCH), ("merge", "--ff-only", "origin/" + BRANCH)]:
             result = git(*args)
             if result.returncode != 0:

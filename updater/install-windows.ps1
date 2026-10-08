@@ -59,9 +59,11 @@ if (-not (Test-Path (Join-Path $repoDir ".git"))) {
   $changed = git -C $repoDir status --porcelain --untracked-files=no
   if ($changed) {
     Write-Host ($changed -join "`n")
-    $answer = Read-Host "These files differ from GitHub's latest version. Replace them with GitHub's? [Y/n]"
+    $answer = Read-Host ("These files differ from GitHub's latest version, usually because the ZIP " +
+      "is older. Update them to GitHub's version now? [Y/n]")
     if ($answer -match "^\s*n") {
-      Write-Host "Kept them. Update now will refuse to run until they match GitHub." -ForegroundColor Yellow
+      Write-Host ("Kept them. Update now won't run until they match GitHub; run " +
+        "'git checkout -- .' in this folder when you're ready.") -ForegroundColor Yellow
     } else {
       git -C $repoDir checkout -q -- .
     }
