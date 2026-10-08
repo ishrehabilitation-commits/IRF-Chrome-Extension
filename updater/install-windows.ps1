@@ -4,6 +4,10 @@
 #
 # It tells Chrome that the IRF Minutes extension is allowed to run
 # updater\irf_updater.bat, which is what pulls the new files.
+#
+# -NoPause skips the "Press Enter" at the end; IRF-Setup.cmd uses it.
+
+param([switch]$NoPause)
 
 $ErrorActionPreference = "Stop"
 
@@ -106,7 +110,9 @@ try {
   Write-Host ""
   Write-Host "Setup failed: $($_.Exception.Message)" -ForegroundColor Red
 } finally {
-  Write-Host ""
-  Read-Host "Press Enter to close this window" | Out-Null
+  if (-not $NoPause) {
+    Write-Host ""
+    Read-Host "Press Enter to close this window" | Out-Null
+  }
 }
 if ($failed) { exit 1 }

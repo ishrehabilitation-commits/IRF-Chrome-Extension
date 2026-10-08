@@ -1,5 +1,10 @@
 # One-time setup for the "Update now" button
 
+> **New Windows PC?** Double-click `setup\IRF-Setup.cmd` instead. It does
+> everything below and more: installs Git if needed, downloads the extension,
+> sets up Update now, and opens Chrome or Edge ready to add it. The file works
+> on its own, so you can copy it to a network share and run it from there.
+
 A Chrome extension can't run git by itself, so the panel asks a small script on
 this computer to do it. Chrome only talks to that script if it has been
 registered first, which is what the installer below does. You run it once per
