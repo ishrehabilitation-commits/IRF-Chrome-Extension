@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAm3WZWvlzGuiUaysRhqkFRNK1Sn6QjBuUlAHptFRH9GZ66inkGuet0Ki0rsdc8gamGHiAkl3LXXNrTfA0dEjR8GMUxnHnBqkzO5HR9zHF1bvpMxl6AMG9DDuLJFiV7a3k8wIhFotDiYXBgFMdmMC75MszElHixbmkDuNVfI76kFJDpaYeNzs9RBU/NhZWCEneSNoDy6FqAA9dB49ZMakCHdJzt75WH3fftqvPDGbDuuoDJfCmTqq2mV0IV3p1EBOjSxsjsZ4W7qE8W5RzMGqg3vRZJr9imguA5waxewXNCq6AZUVc91V9jBxlil7I1SAdCsu5Hs5BdT0J0wBDPUaGKQIDAQAB",
   "name": "IRF Minutes for WellSky",
-  "version": "1.7.1",
+  "version": "1.7.2",
   "description": "Weekly PT/OT/ST minutes and missing-minute charges for Inpatient Rehab patients, docked inside WellSky.",
   "permissions": ["cookies", "storage", "nativeMessaging"],
   "host_permissions": ["https://*.specialtycare.wellsky.com/*"],
