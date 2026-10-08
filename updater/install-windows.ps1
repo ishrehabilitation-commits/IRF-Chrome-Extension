@@ -9,6 +9,7 @@ $ErrorActionPreference = "Stop"
 
 $ExtensionId = "mmibabdnhomcdfpmhfchijiociknhibo"
 $HostName = "com.irf.minutes.updater"
+$RepoUrl = "https://github.com/ishrehabilitation-commits/IRF-Chrome-Extension.git"
 
 $updaterDir = $PSScriptRoot
 $batPath = Join-Path $updaterDir "irf_updater.bat"
@@ -17,8 +18,55 @@ $manifestPath = Join-Path $updaterDir "$HostName.json"
 if (-not (Test-Path $batPath)) {
   throw "Can't find $batPath. Run this script from inside the extension folder."
 }
+function Update-Path {
+  # A fresh install changes PATH in the registry, not in this window.
+  $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
+    [Environment]::GetEnvironmentVariable("Path", "User")
+}
+
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-  throw "git isn't installed, or isn't on PATH. Install Git for Windows first."
+  if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+    throw ("git isn't installed, and winget isn't available to install it. " +
+      "Install Git for Windows from https://git-scm.com/download/win, then run this again.")
+  }
+  $answer = Read-Host "Git isn't installed on this computer. Install it now with winget? [Y/n]"
+  if ($answer -match "^\s*n") {
+    throw "Git is needed for the Update now button. Install Git for Windows, then run this again."
+  }
+  winget install --id Git.Git -e --source winget --accept-package-agreements --accept-source-agreements
+  Update-Path
+  if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+    throw ("Git didn't install, or this window can't see it yet. " +
+      "Close PowerShell, open a new window, and run this again.")
+  }
+  Write-Host "Git installed." -ForegroundColor Green
+}
+
+# A folder downloaded as a ZIP from GitHub has no git history, so Update now
+# couldn't update it. Link it to GitHub in place, so Chrome can keep loading
+# this same folder.
+$repoDir = Split-Path -Parent $updaterDir
+if (-not (Test-Path (Join-Path $repoDir ".git"))) {
+  Write-Host "This folder isn't linked to GitHub yet (it looks like a ZIP download). Linking it now..."
+  git -C $repoDir init -q
+  git -C $repoDir remote add origin $RepoUrl
+  git -C $repoDir fetch -q origin main
+  if ($LASTEXITCODE -ne 0) { throw "Couldn't download from $RepoUrl. Check the network and run this again." }
+  # Point the folder at GitHub's main without touching any files yet.
+  git -C $repoDir reset -q origin/main
+  git -C $repoDir branch -q -M main
+  git -C $repoDir branch -q -u origin/main
+  $changed = git -C $repoDir status --porcelain --untracked-files=no
+  if ($changed) {
+    Write-Host ($changed -join "`n")
+    $answer = Read-Host "These files differ from GitHub's latest version. Replace them with GitHub's? [Y/n]"
+    if ($answer -match "^\s*n") {
+      Write-Host "Kept them. Update now will refuse to run until they match GitHub." -ForegroundColor Yellow
+    } else {
+      git -C $repoDir checkout -q -- .
+    }
+  }
+  Write-Host "Linked to GitHub." -ForegroundColor Green
 }
 # Run the helper exactly the way Chrome will, so a problem shows up now
 # rather than as a vague error in the panel later. It changes nothing.
