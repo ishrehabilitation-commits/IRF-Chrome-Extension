@@ -110,6 +110,15 @@ function Get-Explanation([string]$Output) {
 function Invoke-Update {
   $before = Get-Version
   try {
+    # A merge only refuses edits it would overwrite, so check first: an
+    # edited or stale file would otherwise survive a "successful" update.
+    $status = Invoke-Git @("diff", "--name-only", "HEAD")
+    $changed = @($status.Output -split "\r?\n" | Where-Object { $_.Trim() })
+    if ($status.Code -eq 0 -and $changed.Count -gt 0) {
+      $names = ($changed | Select-Object -First 5) -join ", "
+      if ($changed.Count -gt 5) { $names += " and others" }
+      return [ordered]@{ ok = $false; before = $before; error = "these files don't match GitHub: $names. Run 'git checkout -- .' in the extension folder to replace them with GitHub's version, then try again." }
+    }
     foreach ($step in @(@("fetch", "origin", $Branch), @("merge", "--ff-only", "origin/$Branch"))) {
       $result = Invoke-Git $step
       if ($result.Code -ne 0) {
