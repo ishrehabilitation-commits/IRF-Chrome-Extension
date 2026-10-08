@@ -11,6 +11,9 @@ to run `git pull` themselves.
 ## What you need first
 
 - **git**, and a clone of this repository that the extension is loaded from.
+  On Windows the installer handles both: if git is missing it offers to
+  install it with winget, and if the folder was downloaded as a ZIP it links
+  it to GitHub in place.
 - On Windows, nothing else: the helper is a PowerShell script
   (`irf_updater.ps1`), and PowerShell comes with Windows.
 - On a Mac, **Python 3**, which is usually already there. The Mac helper is
@@ -54,8 +57,12 @@ That means Chrome started the helper but it died before answering. To see why:
    It should print `OK: PowerShell 5.1…, git sees the extension folder`. On a
    Mac: `updater/irf_updater.py --check`.
 
-If it says git can't be found, install Git for Windows and run the installer
-again.
+If it says git can't be found, run the installer again; it will offer to
+install Git.
+
+If Windows says the script "is not digitally signed", use the
+`powershell -ExecutionPolicy Bypass -File …` command above rather than running
+the .ps1 directly.
 
 To try a real update outside Chrome, use `--test` in place of `--check`.
 
